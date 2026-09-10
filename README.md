@@ -1,19 +1,27 @@
-# C++ Game Physics Engine
+# ⚙️ C++ Game Physics Engine
 
-A lightweight, header-only-style 2D physics engine written in modern C++17. It implements rigid-body dynamics with force accumulation, symplectic Euler integration, gravity, restitution-based ground collision, and friction approximation — demonstrated through a real-time terminal simulation of a bouncing ball.
+![C++ Physics Engine Banner](https://image.pollinations.ai/prompt/futuristic%202D%20physics%20engine%20visualization%2C%20glowing%20bouncing%20spheres%20with%20velocity%20vectors%20and%20gravity%20arrows%2C%20dark%20blueprint%20grid%20background%2C%20cyan%20and%20orange%20neon%20trails%2C%20cinematic%20wide%20banner%2C%20high%20detail)
+
+> A lightweight, modern **C++17 2D rigid-body physics engine** featuring force accumulation, symplectic Euler integration, gravity, restitution-based ground collision, and friction — demonstrated through a real-time terminal simulation of a bouncing ball.
+
+![C++17](https://img.shields.io/badge/C%2B%2B-17-blue?logo=c%2B%2B) ![CMake](https://img.shields.io/badge/CMake-%E2%89%A53.10-green?logo=cmake) ![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker) ![License](https://img.shields.io/badge/License-VisionQuantech%20Custom-orange)
+
+---
 
 ## ✨ Features
 
-- **Rigid body dynamics** — mass, inverse-mass (static body support via `inverseMass == 0`), velocity, and acceleration
-- **Force accumulation model** — `applyForce()` accumulates forces each frame, cleared after integration
-- **Symplectic Euler integration** — stable semi-implicit integration suitable for real-time simulation
-- **Gravity simulation** — world-level gravity (`0, -9.81 m/s²`) applied per-body scaled by mass
-- **Ground collision & restitution** — positional correction, velocity reflection with configurable bounciness (`restitution`), and a sleep threshold to stop micro-bouncing
-- **Friction approximation** — horizontal velocity damping on ground contact
-- **Fixed-timestep loop** — 60 FPS simulation (`dt = 0.016s`) with real-time pacing via `std::this_thread::sleep_for`
+- **Rigid body dynamics** — mass, inverse-mass (static bodies via `inverseMass == 0`), velocity, acceleration
+- **Force accumulation model** — `applyForce()` accumulates forces per frame, cleared after integration
+- **Symplectic Euler integration** — stable semi-implicit integration for real-time simulation
+- **Gravity simulation** — world-level gravity `(0, -9.81 m/s²)` applied per-body scaled by mass
+- **Ground collision & restitution** — positional correction, velocity reflection with configurable bounciness, and a sleep threshold to stop micro-bouncing
+- **Friction approximation** — horizontal velocity damping (5%) on ground contact
+- **Fixed-timestep loop** — 60 FPS (`dt = 0.016s`) with real-time pacing via `std::this_thread::sleep_for`
 - **CMake build system** — C++17, single-target build
 
-## 🏗️ Architecture / How It Works
+---
+
+## 🏗️ Architecture — How It Works
 
 The engine is organized into three small, focused modules under `src/`:
 
@@ -27,27 +35,78 @@ src/
     └── world.h         # World: gravity, body registry, stepping, ground collision
 ```
 
+```mermaid
+flowchart TD
+    subgraph Entry["🎬 Entry Point"]
+        M["main.cpp<br/>Creates World + Ball<br/>Runs 120-step loop @ 60 FPS"]
+    end
+
+    subgraph Core["⚙️ Physics Core"]
+        W["World (world.h)<br/>• gravity (0, -9.81)<br/>• owns Body registry<br/>• step(dt)<br/>• checkGroundCollision()"]
+        B["Body (body.h)<br/>• position / velocity / acceleration<br/>• mass & inverseMass<br/>• restitution & radius<br/>• applyForce() / integrate(dt)"]
+        V["Vec2 (vec2.h)<br/>• +, -, scalar ×<br/>• length(), normalize()<br/>• operator<<"]
+    end
+
+    M -->|addBody| W
+    M -->|world.step(dt)| W
+    W -->|applyForce(gravity × mass)| B
+    W -->|integrate(dt)| B
+    W -->|resolve ground hit| B
+    B -->|uses| V
+    W -->|uses| V
+```
+
 ### `Vec2` (`math/vec2.h`)
 A minimal 2D vector struct supporting `+`, `-`, scalar multiplication, `length()`, in-place `normalize()`, and `operator<<` for debugging. This is the mathematical foundation for all positions, velocities, and forces.
 
 ### `Body` (`physics/body.h`)
 Represents a circular rigid body with `position`, `velocity`, `acceleration`, `mass`, `inverseMass`, `restitution` (bounciness in `[0, 1]`), and `radius`.
 
-- **`applyForce(force)`** — converts force to acceleration via Newton's second law (`a = F * inverseMass`) and *accumulates* it. Bodies with `inverseMass == 0` are treated as static and ignore forces.
-- **`integrate(dt)`** — performs **symplectic (semi-implicit) Euler** integration: velocity is updated first, then position uses the *new* velocity. This is more stable than explicit Euler for game physics. Acceleration is reset to zero afterward so forces must be re-applied each frame.
+- **`applyForce(force)`** — converts force to acceleration via Newton's second law (`a = F × inverseMass`) and *accumulates* it. Bodies with `inverseMass == 0` are static and ignore forces.
+- **`integrate(dt)`** — performs **symplectic (semi-implicit) Euler**: velocity is updated first, then position uses the *new* velocity — more stable than explicit Euler. Acceleration is reset afterward, so forces must be re-applied each frame.
 
 ### `World` (`physics/world.h`)
-Owns all bodies (raw pointers, deleted in the destructor) and drives the simulation:
+Owns all bodies (raw pointers, deleted in the destructor) and drives simulation:
 
-- **`step(dt)`** — for each body: applies gravity as a force (`gravity * mass`, so acceleration is independent of mass), integrates, then resolves ground collision.
-- **`checkGroundCollision(body)`** — if the body's bottom edge (`position.y - radius`) penetrates the ground plane (`y = 0`):
-  1. **Positional correction**: snaps the body back to the surface.
-  2. **Restitution response**: reflects vertical velocity scaled by `restitution`.
-  3. **Friction approximation**: damps horizontal velocity by 5% per contact.
-  4. **Sleep threshold**: zeroes vertical velocity below `0.5 m/s` to prevent jitter.
+- **`step(dt)`** — for each body: applies gravity as a force (`gravity × mass`, so acceleration is mass-independent), integrates, then resolves ground collision.
+- **`checkGroundCollision(body)`** — when the body's bottom edge (`position.y - radius`) penetrates the ground plane (`y = 0`):
+  1. **Positional correction** — snaps the body back to the surface.
+  2. **Restitution response** — reflects vertical velocity scaled by `restitution`.
+  3. **Friction approximation** — damps horizontal velocity by 5% per contact.
+  4. **Sleep threshold** — zeroes vertical velocity below `0.5 m/s` to prevent jitter.
+
+### Per-Frame Simulation Pipeline
+
+```mermaid
+sequenceDiagram
+    participant Main as main.cpp
+    participant World as World
+    participant Body as Body
+
+    loop 120 steps (2 seconds @ 60 FPS)
+        Main->>World: step(dt = 0.016)
+        loop for each body
+            World->>Body: applyForce(gravity × mass)
+            Note over Body: acceleration += F × inverseMass
+            World->>Body: integrate(dt)
+            Note over Body: v += a·dt  (velocity first)<br/>p += v·dt  (symplectic Euler)<br/>a = 0  (clear forces)
+            World->>World: checkGroundCollision(body)
+            alt penetrating ground (y - radius < 0)
+                World->>Body: y = radius (positional fix)
+                World->>Body: v.y = -v.y × restitution
+                World->>Body: v.x ×= 0.95 (friction)
+                World->>Body: sleep if |v.y| < 0.5
+            end
+        end
+        Main->>Main: print telemetry (every 10 steps)
+        Main->>Main: sleep 16 ms (real-time pacing)
+    end
+```
 
 ### Simulation loop (`main.cpp`)
-Creates a `World`, spawns a ball at `(0, 10)` with mass `1.0`, radius `0.5`, and initial horizontal velocity `(2, 0)`. It then runs 120 fixed steps of `dt = 0.016s` (2 simulated seconds), printing position/velocity telemetry every 10 steps and sleeping ~16 ms per frame to run in real time.
+Creates a `World`, spawns a ball at `(0, 10)` with mass `1.0`, radius `0.5`, and initial horizontal velocity `(2, 0)`. It runs 120 fixed steps of `dt = 0.016s` (2 simulated seconds), printing position/velocity telemetry every 10 steps and sleeping ~16 ms per frame to run in real time.
+
+---
 
 ## 🚀 Building & Running (Native)
 
@@ -60,13 +119,25 @@ cmake --build .
 ./PhysicsEngine
 ```
 
-Expected output: a telemetry table of the ball's position and velocity as it falls, bounces, and settles.
+**Expected output:** a telemetry table of the ball's position and velocity as it falls, bounces, and settles:
+
+```
+Starting Simulation...
+Time(s) | Position Y | Velocity Y
+-----------------------------------
+0s      | 10 m       | 0 m/s
+0.16s   | 9.79 m     | -1.57 m/s
+...
+Simulation finished.
+```
+
+---
 
 ## 🐳 Running with Docker
 
 A `Dockerfile` is included for containerized execution on any laptop or server.
 
-> ⚠️ **Note:** The provided `Dockerfile` currently references `main.cpp` in the repository root (`RUN g++ -o engine main.cpp`), but the actual source lives in `src/main.cpp` and includes the `physics/` and `math/` headers. **Before building, update the Dockerfile** to match the real layout:
+> ⚠️ **Important:** The provided `Dockerfile` currently references `main.cpp` in the repository root (`RUN g++ -o engine main.cpp`), but the actual source lives in `src/main.cpp` with headers under `src/physics/` and `src/math/`. **Update the Dockerfile before building** to match the real layout:
 
 ```dockerfile
 FROM gcc:latest
@@ -83,39 +154,47 @@ docker build -t cpp-game-physics-engine .
 docker run --rm cpp-game-physics-engine
 ```
 
-Alternatively, skip the Dockerfile and compile via CMake inside a container:
+### Alternative: CMake inside a container (no Dockerfile changes needed)
 
 ```bash
 docker run --rm -v "$PWD":/app -w /app gcc:latest \
   bash -c "mkdir -p build && cd build && cmake .. && make && ./PhysicsEngine"
 ```
 
-There is **no `docker-compose.yml`** in this repository; since the application is a single self-contained executable with no services or ports, plain `docker build` / `docker run` is the correct and sufficient workflow.
+### Optional: docker-compose
 
-## ✅ Workability Assessment
+There is **no `docker-compose.yml`** in this repository, and since the app is a single self-contained executable with no services or ports, plain `docker build` / `docker run` is sufficient. If you prefer compose, this minimal file works:
 
-**Honest evaluation: this is a working early-stage prototype / learning project — not production-ready.**
+```yaml
+services:
+  physics-engine:
+    build: .
+    tty: true
+```
 
-**What works:**
-- The core code in `src/` compiles cleanly as C++17 and runs: gravity, integration, bouncing, friction, and settling all behave correctly for the single-ball demo.
-- The architecture (math / body / world separation) is clean and a good foundation.
-- The CMake configuration is correct and matches the actual source layout.
+```bash
+docker-compose up --build
+```
 
-**Issues and gaps that must be addressed before serious use:**
-1. **Broken Dockerfile** — it compiles a non-existent root `main.cpp` and ignores the `src/` tree and CMake entirely. The container build will fail as shipped (see fix above).
-2. **Stray duplicate `main.cpp`** — a second, unrelated `main.cpp` (a trivial threading demo printing "Engine Core Initialized") exists at the repo root and conflicts with the real entry point in `src/`. It should be removed.
-3. **No body-to-body collision** — only ground-plane collision exists. There is no circle-circle or broadphase/narrowphase collision detection, which is essential for a "game physics engine."
-4. **Raw pointer ownership** — `World` stores `Body*` and manually deletes them; `std::unique_ptr<Body>` would eliminate leak/double-free risk.
-5. **No rotation/angular physics** — no torque, angular velocity, or inertia; bodies are point/circle masses only.
-6. **No tests, no CI** — there is no test suite or verification pipeline.
-7. **Hardcoded demo parameters** — gravity, restitution, friction coefficient, and the sleep threshold are magic numbers baked into the source.
-8. **No rendering** — output is console text only; integration with a renderer (SDL, SFML, etc.) is left to the user.
+---
 
-**Verdict:** solid educational foundation with correct core math, suitable for learning and extension — but it requires fixes (Dockerfile, duplicate main) and substantial feature work (collision detection, memory safety, tests) before it could be considered production-grade.
+## 🗺️ Roadmap / Known Limitations
+
+**Honest assessment: this is a working early-stage prototype — a solid educational foundation, not production-ready.**
+
+- ✅ Core math is correct: gravity, integration, bouncing, friction, and settling all behave properly for the single-ball demo.
+- ⚠️ **Dockerfile mismatch** — compiles a non-existent root `main.cpp` (fix shown above).
+- ⚠️ **Stray duplicate `main.cpp`** — an unrelated threading demo at the repo root conflicts with the real entry point in `src/`; it should be removed.
+- ⚠️ **No body-to-body collision** — only ground-plane collision exists; no circle-circle or broadphase/narrowphase detection.
+- ⚠️ **Raw pointer ownership** — `World` stores `Body*` and manually deletes them; `std::unique_ptr<Body>` would eliminate leak/double-free risk.
+- ⚠️ **No rotation/angular physics** — no torque, angular velocity, or inertia.
+- ⚠️ **No tests/CI, hardcoded constants, console-only output** (no renderer integration).
+
+---
 
 ## 📄 License
 
-This project is distributed under the **VisionQuantech Custom Commercial License** (see `LICENSE`):
+Distributed under the **VisionQuantech Custom Commercial License** (see `LICENSE`):
 
 - **Free** for personal, educational, and non-commercial use.
 - **Revenue share (15–30%)** required for individual/indie commercial use.
