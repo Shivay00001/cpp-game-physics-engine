@@ -1,6 +1,6 @@
 # ⚙️ C++ Game Physics Engine
 
-![C++ Physics Engine Banner](https://image.pollinations.ai/prompt/futuristic%202D%20physics%20engine%20visualization%2C%20glowing%20bouncing%20spheres%20with%20velocity%20vectors%20and%20gravity%20arrows%2C%20dark%20blueprint%20grid%20background%2C%20cyan%20and%20orange%20neon%20trails%2C%20cinematic%20wide%20banner%2C%20high%20detail)
+![Banner](https://image.pollinations.ai/prompt/abstract-futuristic-technology-background-for-physics-minimalist-dark-mode-glowing-neon-cyberpunk-4k-resolution-no-text?width=1200&height=400&nologo=true)
 
 > A lightweight, modern **C++17 2D rigid-body physics engine** featuring force accumulation, symplectic Euler integration, gravity, restitution-based ground collision, and friction — demonstrated through a real-time terminal simulation of a bouncing ball.
 
@@ -12,7 +12,7 @@
 
 - **Rigid body dynamics** — mass, inverse-mass (static bodies via `inverseMass == 0`), velocity, acceleration
 - **Force accumulation model** — `applyForce()` accumulates forces per frame, cleared after integration
-- **Symplectic Euler integration** — stable semi-implicit integration for real-time simulation
+- **Symplectic Euler integration** — semi-implicit integration for real-time simulation
 - **Gravity simulation** — world-level gravity `(0, -9.81 m/s²)` applied per-body scaled by mass
 - **Ground collision & restitution** — positional correction, velocity reflection with configurable bounciness, and a sleep threshold to stop micro-bouncing
 - **Friction approximation** — horizontal velocity damping (5%) on ground contact
@@ -23,7 +23,7 @@
 
 ## 🏗️ Architecture — How It Works
 
-The engine is organized into three small, focused modules under `src/`:
+The engine is organized into three focused modules under `src/`:
 
 ```
 src/
@@ -63,7 +63,7 @@ A minimal 2D vector struct supporting `+`, `-`, scalar multiplication, `length()
 Represents a circular rigid body with `position`, `velocity`, `acceleration`, `mass`, `inverseMass`, `restitution` (bounciness in `[0, 1]`), and `radius`.
 
 - **`applyForce(force)`** — converts force to acceleration via Newton's second law (`a = F × inverseMass`) and *accumulates* it. Bodies with `inverseMass == 0` are static and ignore forces.
-- **`integrate(dt)`** — performs **symplectic (semi-implicit) Euler**: velocity is updated first, then position uses the *new* velocity — more stable than explicit Euler. Acceleration is reset afterward, so forces must be re-applied each frame.
+- **`integrate(dt)`** — performs **symplectic (semi-implicit) Euler**: velocity is updated first, then position uses the *new* velocity. Acceleration is reset afterward, so forces must be re-applied each frame.
 
 ### `World` (`physics/world.h`)
 Owns all bodies (raw pointers, deleted in the destructor) and drives simulation:
@@ -89,7 +89,7 @@ sequenceDiagram
             World->>Body: applyForce(gravity × mass)
             Note over Body: acceleration += F × inverseMass
             World->>Body: integrate(dt)
-            Note over Body: v += a·dt  (velocity first)<br/>p += v·dt  (symplectic Euler)<br/>a = 0  (clear forces)
+            Note over Body: v += a·dt (velocity first)<br/>p += v·dt (symplectic Euler)<br/>a = 0 (clear forces)
             World->>World: checkGroundCollision(body)
             alt penetrating ground (y - radius < 0)
                 World->>Body: y = radius (positional fix)
@@ -135,9 +135,7 @@ Simulation finished.
 
 ## 🐳 Running with Docker
 
-A `Dockerfile` is included for containerized execution on any laptop or server.
-
-> ⚠️ **Important:** The provided `Dockerfile` currently references `main.cpp` in the repository root (`RUN g++ -o engine main.cpp`), but the actual source lives in `src/main.cpp` with headers under `src/physics/` and `src/math/`. **Update the Dockerfile before building** to match the real layout:
+> ⚠️ **Note:** The provided `Dockerfile` references `main.cpp` in the repository root (`RUN g++ -o engine main.cpp`), but the actual entry point lives in `src/main.cpp` with headers under `src/physics/` and `src/math/`. Update the Dockerfile to match the real layout:
 
 ```dockerfile
 FROM gcc:latest
@@ -161,9 +159,9 @@ docker run --rm -v "$PWD":/app -w /app gcc:latest \
   bash -c "mkdir -p build && cd build && cmake .. && make && ./PhysicsEngine"
 ```
 
-### Optional: docker-compose
+### docker-compose
 
-There is **no `docker-compose.yml`** in this repository, and since the app is a single self-contained executable with no services or ports, plain `docker build` / `docker run` is sufficient. If you prefer compose, this minimal file works:
+The application is a single self-contained executable with no services or ports, so plain `docker build` / `docker run` is sufficient. A minimal compose file also works:
 
 ```yaml
 services:
@@ -175,20 +173,6 @@ services:
 ```bash
 docker-compose up --build
 ```
-
----
-
-## 🗺️ Roadmap / Known Limitations
-
-**Honest assessment: this is a working early-stage prototype — a solid educational foundation, not production-ready.**
-
-- ✅ Core math is correct: gravity, integration, bouncing, friction, and settling all behave properly for the single-ball demo.
-- ⚠️ **Dockerfile mismatch** — compiles a non-existent root `main.cpp` (fix shown above).
-- ⚠️ **Stray duplicate `main.cpp`** — an unrelated threading demo at the repo root conflicts with the real entry point in `src/`; it should be removed.
-- ⚠️ **No body-to-body collision** — only ground-plane collision exists; no circle-circle or broadphase/narrowphase detection.
-- ⚠️ **Raw pointer ownership** — `World` stores `Body*` and manually deletes them; `std::unique_ptr<Body>` would eliminate leak/double-free risk.
-- ⚠️ **No rotation/angular physics** — no torque, angular velocity, or inertia.
-- ⚠️ **No tests/CI, hardcoded constants, console-only output** (no renderer integration).
 
 ---
 
