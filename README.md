@@ -1,5 +1,7 @@
 # ⚙️ C++ Game Physics Engine
 
+Built by [VisionQuantech](https://visionquantech.com) — AI agents, apps & tools for small businesses.
+
 ![Banner](https://image.pollinations.ai/prompt/abstract-futuristic-technology-background-for-physics-minimalist-dark-mode-glowing-neon-cyberpunk-4k-resolution-no-text?width=1200&height=400&nologo=true)
 
 > A lightweight, modern **C++17 2D rigid-body physics engine** featuring force accumulation, symplectic Euler integration, gravity, restitution-based ground collision, and friction — demonstrated through a real-time terminal simulation of a bouncing ball.
